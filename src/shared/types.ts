@@ -165,6 +165,9 @@ export interface AppConfig {
   modelProvider: string;
   modelName: string;
   modelApiKey: string;
+  accountEmail: string;
+  accountAuthorized: boolean;
+  clerkUserId: string;
   autoStartGateway: boolean;
   onboardingCompleted: boolean;
   updatedAt: string;
@@ -199,6 +202,7 @@ export interface RendererApi {
   gatewayStart: () => Promise<CommandResult>;
   gatewayStartStreaming: () => Promise<CommandResult>;
   gatewayStop: () => Promise<CommandResult>;
+  openExternalUrl: (url: string) => Promise<boolean>;
   loadConfig: () => Promise<AppConfig>;
   saveConfig: (config: Partial<AppConfig>) => Promise<AppConfig>;
   getSetupState: () => Promise<SetupState>;
