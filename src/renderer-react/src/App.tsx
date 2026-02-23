@@ -15,6 +15,7 @@ import {
   FileText,
   Folder,
   MessageSquare,
+  LockKeyhole,
   Moon,
   Play,
   RefreshCw,
@@ -22,6 +23,7 @@ import {
   Sparkles,
   Square,
   Sun,
+  UserRoundCheck,
   Wrench
 } from "lucide-react";
 import type {
@@ -60,6 +62,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { Textarea } from "./components/ui/textarea";
 
 const CONTROL_UI_URL = "http://127.0.0.1:18789/";
+const CLERK_SIGN_IN_URL = "https://clerk.openclaw.ai/sign-in";
 
 const DEFAULT_SETUP: SetupState = {
   stage: "idle",
@@ -166,6 +169,8 @@ export function App() {
   const [manageProvider, setManageProvider] = useState("");
   const [manageModel, setManageModel] = useState("");
   const [telegramToken, setTelegramToken] = useState("");
+  const [accountEmailInput, setAccountEmailInput] = useState("");
+  const [clerkUserIdInput, setClerkUserIdInput] = useState("");
   const [busyAction, setBusyAction] = useState("");
   const [error, setError] = useState("");
   const [logs, setLogs] = useState<string[]>(["App ready."]);
@@ -267,6 +272,8 @@ export function App() {
   const refreshConfig = useCallback(async () => {
     const config = await window.openclaw.loadConfig();
     setConfigDraft(config);
+    setAccountEmailInput(config.accountEmail || "");
+    setClerkUserIdInput(config.clerkUserId || "");
     return config;
   }, []);
 
@@ -409,6 +416,10 @@ export function App() {
   });
 
   const completeOnboarding = () => runAction("Complete onboarding", async () => {
+    if (!configDraft?.accountAuthorized || !configDraft.accountEmail) {
+      throw new Error("Authorize a Clerk account in Step 1 before completing onboarding.");
+    }
+
     const setup = await window.openclaw.completeOnboardingFromUi();
     setSetupState(setup);
     const nextConfig = await window.openclaw.saveConfig({ onboardingCompleted: true });
@@ -466,6 +477,9 @@ export function App() {
       modelProvider: configDraft.modelProvider,
       modelName: configDraft.modelName,
       modelApiKey: configDraft.modelApiKey,
+      accountEmail: configDraft.accountEmail,
+      accountAuthorized: configDraft.accountAuthorized,
+      clerkUserId: configDraft.clerkUserId,
       autoStartGateway: configDraft.autoStartGateway,
       onboardingCompleted: configDraft.onboardingCompleted
     });
@@ -724,6 +738,51 @@ export function App() {
     };
   }, [clearChatTabTimer]);
 
+
+  const startClerkAuthorization = () => runAction("Open Clerk sign-in", async () => {
+    const opened = await window.openclaw.openExternalUrl(CLERK_SIGN_IN_URL);
+    if (!opened) {
+      throw new Error("Could not open Clerk sign-in.");
+    }
+
+    appendLog("Opened Clerk sign-in in your browser.");
+  });
+
+  const confirmClerkAuthorization = () => runAction("Confirm Clerk authorization", async () => {
+    const email = accountEmailInput.trim().toLowerCase();
+    const clerkUserId = clerkUserIdInput.trim();
+    if (!email || !email.includes("@")) {
+      throw new Error("Enter the Clerk account email first.");
+    }
+    if (!clerkUserId || !clerkUserId.startsWith("user_")) {
+      throw new Error("Enter a valid Clerk user ID (starts with user_).");
+    }
+
+    const nextConfig = await window.openclaw.saveConfig({
+      accountEmail: email,
+      accountAuthorized: true,
+      clerkUserId
+    });
+
+    setConfigDraft(nextConfig);
+    setAccountEmailInput(nextConfig.accountEmail);
+    setClerkUserIdInput(nextConfig.clerkUserId);
+    appendLog(`Clerk account authorized: ${email} (${clerkUserId})`);
+  });
+
+  const resetClerkAuthorization = () => runAction("Reset Clerk authorization", async () => {
+    const nextConfig = await window.openclaw.saveConfig({
+      accountEmail: "",
+      accountAuthorized: false,
+      clerkUserId: ""
+    });
+
+    setConfigDraft(nextConfig);
+    setAccountEmailInput("");
+    setClerkUserIdInput("");
+    appendLog("Clerk authorization reset.");
+  });
+
   const renderOnboardingPane = () => (
     <div className="space-y-5">
       <Card>
@@ -759,7 +818,47 @@ export function App() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Setup Actions</CardTitle>
+          <CardTitle>Step 1 · Clerk account authorization</CardTitle>
+          <CardDescription>Require Clerk sign-in before the rest of onboarding can be completed.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-1 gap-2">
+            <Input
+              value={accountEmailInput}
+              onChange={(event) => setAccountEmailInput(event.target.value)}
+              placeholder="clerk-email@example.com"
+            />
+            <Input
+              value={clerkUserIdInput}
+              onChange={(event) => setClerkUserIdInput(event.target.value)}
+              placeholder="user_xxxxxxxxxxxxx"
+            />
+            <div className="flex flex-wrap gap-2">
+            <Button onClick={startClerkAuthorization} disabled={isBusy}>
+              <LockKeyhole className="h-3.5 w-3.5" />
+              Open Clerk Sign-In
+            </Button>
+            <Button variant="outline" onClick={confirmClerkAuthorization} disabled={isBusy}>
+              <UserRoundCheck className="h-3.5 w-3.5" />
+              Confirm
+            </Button>
+            </div>
+          </div>
+          <div className="flex items-center justify-between rounded-md border bg-muted/30 p-2 text-xs text-muted-foreground">
+            <span>Current Clerk account: {configDraft?.accountEmail || "Not authorized"}{configDraft?.clerkUserId ? ` · ${configDraft.clerkUserId}` : ""}</span>
+            <Badge variant={configDraft?.accountAuthorized ? "success" : "warning"}>
+              {configDraft?.accountAuthorized ? "Authorized" : "Pending"}
+            </Badge>
+          </div>
+          <div>
+            <Button variant="ghost" onClick={resetClerkAuthorization} disabled={isBusy || !configDraft?.accountAuthorized}>Reset authorization</Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Step 2 · Setup Actions</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -783,7 +882,7 @@ export function App() {
               <Settings className="h-3.5 w-3.5" />
               CLI Onboard
             </Button>
-            <Button variant="outline" onClick={completeOnboarding} disabled={isBusy || gatewayReady !== true}>
+            <Button variant="outline" onClick={completeOnboarding} disabled={isBusy || gatewayReady !== true || !configDraft?.accountAuthorized}>
               <Sparkles className="h-3.5 w-3.5" />
               Complete Onboarding
             </Button>
@@ -1304,6 +1403,11 @@ export function App() {
                 label: "Gateway",
                 value: readinessText(environment ? environment.gatewayRunning : null, "Running", "Stopped"),
                 variant: toVariant(environment ? environment.gatewayRunning : null)
+              },
+              {
+                label: "Clerk account",
+                value: configDraft?.accountAuthorized ? (configDraft.accountEmail || "Authorized") : "Pending",
+                variant: configDraft?.accountAuthorized ? "success" : "warning"
               },
               {
                 label: "Onboarding",

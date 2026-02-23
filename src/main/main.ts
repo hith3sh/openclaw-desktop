@@ -362,6 +362,15 @@ function registerIpcHandlers(): void {
     return result;
   });
 
+  ipcMain.handle("external:open-url", async (_event, url: string) => {
+    if (!url || typeof url !== "string") {
+      return false;
+    }
+
+    await shell.openExternal(url);
+    return true;
+  });
+
   ipcMain.handle("config:load", () => configStore.load());
   ipcMain.handle("config:save", (_event, config) => configStore.save(config));
 

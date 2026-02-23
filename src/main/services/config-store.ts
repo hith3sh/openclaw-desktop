@@ -8,6 +8,9 @@ const defaultConfig: AppConfig = {
   modelProvider: "",
   modelName: "",
   modelApiKey: "",
+  accountEmail: "",
+  accountAuthorized: false,
+  clerkUserId: "",
   autoStartGateway: true,
   onboardingCompleted: false,
   updatedAt: new Date(0).toISOString()
@@ -30,6 +33,9 @@ export class ConfigStore {
         modelProvider: parsed.modelProvider ?? defaultConfig.modelProvider,
         modelName: parsed.modelName ?? defaultConfig.modelName,
         modelApiKey: parsed.modelApiKey ?? defaultConfig.modelApiKey,
+        accountEmail: parsed.accountEmail ?? defaultConfig.accountEmail,
+        accountAuthorized: parsed.accountAuthorized ?? defaultConfig.accountAuthorized,
+        clerkUserId: parsed.clerkUserId ?? defaultConfig.clerkUserId,
         autoStartGateway: parsed.autoStartGateway ?? defaultConfig.autoStartGateway,
         onboardingCompleted: parsed.onboardingCompleted ?? defaultConfig.onboardingCompleted,
         updatedAt: parsed.updatedAt ?? defaultConfig.updatedAt

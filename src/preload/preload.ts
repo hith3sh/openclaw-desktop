@@ -36,6 +36,7 @@ const api: RendererApi = {
   gatewayStart: () => ipcRenderer.invoke("gateway:start"),
   gatewayStartStreaming: () => ipcRenderer.invoke("gateway:start-stream"),
   gatewayStop: () => ipcRenderer.invoke("gateway:stop"),
+  openExternalUrl: (url: string) => ipcRenderer.invoke("external:open-url", url),
   loadConfig: () => ipcRenderer.invoke("config:load"),
   saveConfig: (config: Partial<AppConfig>) => ipcRenderer.invoke("config:save", config),
   getSetupState: () => ipcRenderer.invoke("setup:get-state"),
